@@ -1,0 +1,6 @@
+{
+	"mode": "user",
+	"dir": "/.local/etc/services",
+	"servicedir": "/.local/etc/service.d",
+	"timeout": 3
+}

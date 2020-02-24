@@ -1,0 +1,161 @@
+#!/usr/bin/perl
+
+# runit sv utility ignores evironment variable SVDIR
+# and unable to list services, fully relying to user this knowlege
+
+use strict;
+use warnings "all";
+use JSON::PP;
+
+sub help;
+sub ctrl ($);
+sub status;
+
+my $c;
+
+if ($>) {
+# looks like we run in user-mode, so manage user services
+	die "\$HOME is not set\n" unless (defined($ENV{HOME}));
+	die "$ENV{HOME} does not exist\n" unless (-d $ENV{HOME});
+
+	my $sep = $/;
+	$/ = '';
+
+# TODO: actually, to be the most XDG-compatible, we should put config to $ENV{HOME}/.config/svc/svc.json
+	open (CONF, "$ENV{HOME}/.local/etc/svc.json") or die "No config at $ENV{HOME}/.local/etc/svc.json\n";
+	$c = <CONF>;
+	close CONF;
+	$/ = $sep;
+
+	$c = decode_json($c);
+	$c->{dir} = sprintf("%s%s", $ENV{HOME}, $c->{dir});
+	$c->{servicedir} = sprintf("%s%s", $ENV{HOME}, $c->{servicedir});
+} else {
+# looks like we run with root privileges, manage system services
+	$c->{mode} = "system";
+	$c->{dir} = "/etc/service";
+
+	if (-d "/etc/service.d") {
+		$c->{servicedir} = "/etc/service.d";
+	} else {
+
+# guideline of runit suggest to use /service directory, also sv utility expects services placed there by default
+		$c->{servicedir} = "/service";
+	}
+
+	$c->{timeout} = 3;
+}
+
+die "No such directory $c->{dir}\n" unless (-d $c->{dir});
+chdir $c->{dir};
+
+unless (defined($ARGV[0])) {
+	help;
+} else {
+	if ($ARGV[0] ne 'list') {
+		help unless (defined($ARGV[1]));
+	}
+}
+
+if ($ARGV[0] eq 'list') {
+	my $d;
+
+	if (defined($ARGV[1]) && $ARGV[1] eq '--all') {
+		$d = $c->{servicedir};
+	} else {
+		$d = $c->{dir};
+	}
+
+	opendir(D, $d) or die "Unable to list services, no such directory $d\n";
+	print join("\n", sort (grep {!/^\.{1,2}$/} readdir(D))) . "\n";
+	closedir D;
+} elsif ($ARGV[1] eq 'disable') {
+	my $d = "$c->{dir}/$ARGV[0]";
+
+	if (-l $d) {
+		unlink ("$d") or die "Unable to disable $ARGV[0]\n";
+	} else {
+		die "No such service $ARGV[0]\n";
+	}
+} elsif ($ARGV[1] eq 'enable') {
+	my $d = "$c->{dir}/$ARGV[0]";
+
+	if (-l $d) {
+		die "Service $ARGV[0] already enabled\n";
+	} else {
+		my $svcdir = "$c->{servicedir}/$ARGV[0]";
+
+		if (-d $svcdir) {
+			symlink ($svcdir, $d) or die "Unable to enable service $ARGV[0]\n";
+		} else {
+			die "No such service $ARGV[0]\n";
+		}
+	}
+} elsif ((-l "./$ARGV[0]") || (-d "./$ARGV[0]")) {
+	chdir "./$ARGV[0]";
+	die "Is service running?\n" unless (-d './supervise');
+	chdir './supervise';
+
+	if ($ARGV[1] eq 'start') {
+		die "Service $ARGV[0] already running.\n" if (status() eq 'run');
+		ctrl('u');
+	} elsif ($ARGV[1] eq 'restart') {
+		die "Service $ARGV[0] already stopped.\n" if (status() eq 'down');
+		ctrl('d');
+
+		for (my $cnt = 0; $cnt < $c->{timeout}; $cnt++) {
+			if (status() eq 'down') {
+				last;
+			}
+
+			sleep 1;
+		}
+
+		ctrl('k') if (status() ne 'down');
+		sleep 1;
+		ctrl('u');
+	} elsif ($ARGV[1] eq 'stop') {
+		die "Service $ARGV[0] already stopped.\n" if (status() eq 'down');
+		ctrl('d');
+
+		for (my $cnt = 0; $cnt < $c->{timeout}; $cnt++) {
+			if (status() eq 'down') {
+				last;
+			}
+
+			sleep 1;
+		}
+
+		ctrl('k') if (status() ne 'down');
+		sleep 1;
+	} elsif ($ARGV[1] eq 'status') {
+		print status() . "\n";
+	}
+} else {
+	die "No such service.\n";
+}
+
+exit 0;
+
+sub help {
+	print "Usage $0 SERVICE [start|stop|restart|status|enable|disable]\n";
+	print "      $0 list [--all]\n";
+	exit 0;
+}
+
+sub ctrl ($) {
+	my $command = shift;
+	open (C, ">", "control") or die "Unable to write to control socket\n";
+	print C $command;
+	close C;
+}
+
+sub status {
+	open (S, "stat") or die "Unable to read status.\n";
+	my $status = <S>;
+	chomp $status;
+	close S;
+	return $status;
+}
+
+# vim: set ft=perl noet ai ts=4 sw=4 sts=4:

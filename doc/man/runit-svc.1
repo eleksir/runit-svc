@@ -1,0 +1,37 @@
+.TH "SVC" "1" "24 February 2020"
+.SH "NAME"
+runit-svc \- sv replacement tool for runit
+.SH "SYNOPSIS"
+.B svc
+SERVICE_NAME start|stop|restart|status|enable|disable
+.br
+.B svc
+list [--all]
+.SH "DESCRIPTION"
+.PP
+Manipulates system or user runit-services.
+.SH "OPTIONS"
+.TP
+\fBsvc list\fR
+Show enabled services list for system or user
+.TP
+\fBsvc list \-\-all\fR
+Show all services for system or user
+.TP
+\fBsvc SERVICE_NAME start|stop|restart|status\fR
+Starts, stops, restarts, show status of service
+.TP
+\fBsvc SERVICE_NAME disable\fR
+Disables service. Note that service will be stopped immediately after disabling.
+.TP
+\fBsvc SERVICE_NAME enable\fR
+Enables service. Note that service will be started immediately after enabling.
+.TP
+.SH "AUTHOR"
+.TP
+Sergei Fedosoff <eleksir@gmail.com> aka eleksir <eleksir@exs-elm.ru>
+.SH "COPYRIGHT"
+Copyright \*R 2020 Sergei Fedosoff. License 2 clause BSD:
+https://directory.fsf.org/wiki?title=License:FreeBSD
+.SH "SEE ALSO"
+.B sv (1).

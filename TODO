@@ -1,0 +1,6 @@
+There is some thing that are not critical, but should be done, eventually.
+
+
+1. Regard SVDIR environment variable, to be more good than original sv utility.
+
+2. Think about XDG compliance for user config.

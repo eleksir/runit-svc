@@ -1,0 +1,15 @@
+svc - runit sv replacement utility.
+
+Svc was created because of there is no mean to manage services, running under
+runsvdir from user. Despite of docs runit native utility disregard environment
+variable SVDIR when looking for service, so all services MUST be in /service
+dir which is not user writable.
+
+Also sv is unable to list, enable, disable and restart services.
+
+There is sample config file for user services, it is located in doc/examples.
+It should be placed in ~/.local/etc directory of non-root user.
+
+For system-wide services there is no config file required.
+
+Requirements: perl, perl-JSON-PP (both already supplied with slackware linux)
